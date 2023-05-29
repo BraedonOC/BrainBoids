@@ -7,7 +7,9 @@ const Y_SPAWN_AREA: f32 = 500.0;
 const NEIGHBORS: u16 = 5;
 const TARGET_DISTANCE: f32 = 30.0;
 const DISGUST: f32 = 0.05;
+
 const MAX_SPEED: f32 = 5.0;
+const MIN_SPEED: f32 = 3.0;
 
 
 
@@ -27,6 +29,7 @@ impl Default for Position {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Velocity {
     pub x   : f32,
     pub y   : f32,
@@ -41,6 +44,14 @@ impl Default for Velocity {
         }
     }
 }
+
+/*
+impl Clone for MyStruct {
+    fn clone(&self) -> MyStruct {
+        *self
+    }
+}
+*/
 
 pub fn nearest_neighbors(boid_index : usize, boids : &Vec<(Position, Velocity)>) -> Vec<(usize, f32)>  {
     let (target_pos, _) = &boids[boid_index];
@@ -90,10 +101,6 @@ pub fn adjust_vel(boid_index : usize, boids : &Vec<(Position, Velocity)>) -> Vel
         avoidance_x_sum += (neigh_pos.x - cur_pos.x) * avoidance_factor * DISGUST;
         avoidance_y_sum += (neigh_pos.y - cur_pos.y) * avoidance_factor * DISGUST;
 
-        println!("neighbor dist: {}", dist);
-
-        println!("avoidance_x_sum from neighbor: {}", avoidance_x_sum);
-        println!("avoidance_y_sum from neighbor: {}", avoidance_y_sum);
 
 //      if cur_pos.x > X_SPAWN_AREA {
 //          avoidance_x_sum += X_SPAWN_AREA - cur_pos.x;
@@ -108,9 +115,6 @@ pub fn adjust_vel(boid_index : usize, boids : &Vec<(Position, Velocity)>) -> Vel
 //          avoidance_y_sum += Y_SPAWN_AREA - cur_pos.y;
 //      }
 
-//      println!("avoidance_x_sum after spawn area: {}", avoidance_x_sum);
-//      println!("avoidance_y_sum after spawn area: {}", avoidance_y_sum);
-
         neighbor_x_sum += neigh_vel.x;
         neighbor_y_sum += neigh_vel.y;
         
@@ -118,25 +122,30 @@ pub fn adjust_vel(boid_index : usize, boids : &Vec<(Position, Velocity)>) -> Vel
 
     let matching_vel_x = neighbor_x_sum / (NEIGHBORS as f32);
     let matching_vel_y = neighbor_y_sum / (NEIGHBORS as f32);
-    println!("adjusting boid vel to <{}, {}>", matching_vel_x + avoidance_x_sum, matching_vel_y + avoidance_y_sum);
     let mut new_vel_x : f32 = matching_vel_x + avoidance_x_sum;
     let mut new_vel_y : f32 = matching_vel_y + avoidance_y_sum;
 
     let new_speed = f32::sqrt( 
                                f32::powi(new_vel_x, 2)
-                             + f32::powi(new_vel_x, 2)
+                             + f32::powi(new_vel_y, 2)
                            );
+
     if new_speed > MAX_SPEED {
         new_vel_x = new_vel_x * MAX_SPEED / new_speed;
         new_vel_y = new_vel_y * MAX_SPEED / new_speed;
     }
 
+    if new_speed < MIN_SPEED {
+        new_vel_x = new_vel_x * MIN_SPEED / new_speed;
+        new_vel_y = new_vel_y * MIN_SPEED / new_speed;
+    }
+
     let adjusted_speed =  f32::sqrt( 
                                f32::powi(new_vel_x, 2)
-                             + f32::powi(new_vel_x, 2)
+                             + f32::powi(new_vel_y, 2)
                            );
 
-    println!("normalized vel <{}, {}> has mag {}", new_vel_x, new_vel_y, adjusted_speed);
+    println!("in adjust vec boid {} has vel ({}, {}) speed {}", boid_index, new_vel_x, new_vel_y, adjusted_speed);
 
     Velocity{x: new_vel_x, y: new_vel_y}
 }
