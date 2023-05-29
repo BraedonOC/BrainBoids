@@ -1,18 +1,32 @@
 use nannou::prelude::*;
-use crate::boids::Position;
-use crate::boids::Velocity;
-use crate::boids::adjust_vel;
-use crate::boids::nearest_neighbors;
+use crate::boids::*;
 use std::{thread, time};
+use rand::Rng;
 
 mod boids;
 
 const BORDER_BUFFER: f32 = 5.0;
 
-const BOIDS: usize = 100;
+const BOIDS: usize = 300;
 
 const DRAW_NEIGHBORS: bool = true;
-const DRAW_VELS: bool = true;
+const DRAW_VELS: bool = false;
+
+const SPECIES_COLORS: [(u8, u8, u8); NUMBER_OF_SPECIES] = [
+                                                             (250, 230, 100),
+                                                             (100, 255, 200),
+                                                             (100, 200, 255),
+                                                          ];
+
+
+
+
+
+// impl From<Color> for Rgb {
+//     fn from(c: Color) -> Self {
+//         named::from_str(&c.to_string()).unwrap()
+//     }
+// }
 
 fn main() {
     nannou::app(model)
@@ -23,7 +37,7 @@ fn main() {
 
 struct Model {
     _window : window::Id,
-    population : Vec<(Position, Velocity)>,
+    population : Vec<Boid>,
 }
 
 
@@ -31,8 +45,13 @@ struct Model {
 fn model(app: &App) -> Model {
 
     let mut population = Vec::with_capacity(BOIDS);
+    let mut rng = rand::thread_rng();
+
     for _ in 0..BOIDS {
-        population.push((Position::default(), Velocity::default()));
+        population.push(Boid{ pos     : Position::default(), 
+                              vel     : Velocity::default(),
+                              species : rng.gen_range(0..NUMBER_OF_SPECIES),
+                            });
     }
 
     let _window = app.new_window()
@@ -45,11 +64,11 @@ fn model(app: &App) -> Model {
 
 fn update(app : &App, model: &mut Model, _update: Update) {
     
-    thread::sleep(time::Duration::from_millis(50));
+    thread::sleep(time::Duration::from_millis(10));
     for b in 0..model.population.len() {
-        let (pos, vel) = &model.population[b];
+        let boid = &model.population[b];
         // TODO: this math is wrong with the mags
-        let (mut new_pos_x, mut new_pos_y) = (pos.x + vel.x,  pos.y + vel.y);
+        let (mut new_pos_x, mut new_pos_y) = (boid.pos.x + boid.vel.x,  boid.pos.y + boid.vel.y);
 
         let boundry = app.window_rect();
 
@@ -62,8 +81,9 @@ fn update(app : &App, model: &mut Model, _update: Update) {
         }
 
         let updated_vel = adjust_vel(b, &model.population);
-        let updated_boid = (Position{x : new_pos_x, y : new_pos_y},
-                            updated_vel);
+        let updated_boid = Boid { pos : Position{x : new_pos_x, y : new_pos_y},
+                                  vel : updated_vel,
+                                  species : boid.species };
 
         let speed = f32::sqrt( 
                                    f32::powi(updated_vel.x, 2)
@@ -81,15 +101,21 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
 
     for b in 0..model.population.len() {
-        let (pos, vel) = &model.population[b];
-        draw.ellipse().w(10.0).h(10.0).color(BLUE).x_y(pos.x, pos.y);
-        let boid_pos = pt2(pos.x, pos.y);
+        let boid = &model.population[b];
+        let boid_pos = pt2(boid.pos.x, boid.pos.y);
 
+        let mut species_color = Rgb::default();
+        (   species_color.red,
+            species_color.green,
+            species_color.blue) = SPECIES_COLORS[boid.species as usize];
+
+        draw.ellipse().w(10.0).h(10.0).color(species_color).x_y(boid.pos.x, boid.pos.y);
+ 
         if DRAW_VELS {
-            let vel_pos = pt2(pos.x + vel.x, pos.y + vel.y);
+            let vel_pos = pt2(boid.pos.x + boid.vel.x, boid.pos.y + boid.vel.y);
             let speed = f32::sqrt( 
-                                       f32::powi(vel.x, 2)
-                                     + f32::powi(vel.y, 2)
+                                       f32::powi(boid.vel.x, 2)
+                                     + f32::powi(boid.vel.y, 2)
                                  );
             println!("boid {} moving at {}", b, speed);
 
@@ -102,20 +128,26 @@ fn view(app: &App, model: &Model, frame: Frame) {
         }
         if DRAW_NEIGHBORS {
             for (neighbor_idx, _) in nearest_neighbors(b, &model.population) {
-                let (neighbor_pos, _) = &model.population[neighbor_idx];
-                let neighbor_pos = pt2(neighbor_pos.x, neighbor_pos.y);
-                draw.line()
-                    .start(boid_pos)
-                    .end(neighbor_pos)
-                    .weight(4.0)
-                    .color(STEELBLUE);
+                let neighbor = &model.population[neighbor_idx];
+                if neighbor.species == boid.species {
+                    let neighbor_pos = pt2(neighbor.pos.x, neighbor.pos.y);
+                    draw.line()
+                        .start(boid_pos)
+                        .end(neighbor_pos)
+                        .weight(1.0)
+                        .color(species_color);
+                }
             }
         }
     }
 
 
 
-    draw.background().color(PLUM);
+    let mut background_color = Rgb::default();
+    background_color.red   =   ((220) as f32  + 15.0  * (app.time / 4.0 + 0.2).sin()) as u8;
+    background_color.green =   ((120 ) as f32 + 30.0  * (app.time / 4.0 + 4.4).sin()) as u8;
+    background_color.blue  =   ((150) as f32  +  50.0 * (app.time / 4.0 + 1.1).sin()) as u8;
+    draw.background().color(background_color);
 
     draw.to_frame(app, &frame).unwrap();
 }
