@@ -2,8 +2,8 @@ use rand::Rng;
 use std::default::Default;
 
 
-const X_SPAWN_AREA: f32 = 5000.0;
-const Y_SPAWN_AREA: f32 = 5000.0;
+const X_SPAWN_AREA: f32 = 500.0;
+const Y_SPAWN_AREA: f32 = 500.0;
 const NEIGHBORS: u16 = 5;
 const TARGET_DISTANCE: f32 = 40.0;
 
@@ -19,9 +19,9 @@ pub const NUMBER_OF_SPECIES: usize = 3;
 
 const RELATIONSHIPS: [[f32; NUMBER_OF_SPECIES]; NUMBER_OF_SPECIES] = 
                      [
-                        [ 1.0, 100.0,  100.0],
-                        [ 100.0, 1.0, 10.0],
-                        [ 1.0,  1.0, 1.0],
+                        [  4.0,  100.0,  100.0],
+                        [ 10.0, 1.0, 10.0],
+                        [ 0.1,  1.0, 0.8],
                      ];
 
 pub struct Position {
@@ -118,7 +118,7 @@ pub fn adjust_vel(boid_index : usize, boids : &Vec<Boid>) -> Velocity {
         let neighbor = &boids[idx];
         
         // positive avoidance factor implies we need to move away
-        let avoidance_factor =   f32::powi(dist - RELATIONSHIPS[cur_boid.species][neighbor.species] * TARGET_DISTANCE, 3);
+        let avoidance_factor =   f32::powi((dist - RELATIONSHIPS[cur_boid.species][neighbor.species] * TARGET_DISTANCE) / SLOW_POINT, 3);
         avoidance_x_sum += (neighbor.pos.x - cur_boid.pos.x) * avoidance_factor * DISGUST;
         avoidance_y_sum += (neighbor.pos.y - cur_boid.pos.y) * avoidance_factor * DISGUST;
 
